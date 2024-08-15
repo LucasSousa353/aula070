@@ -1,4 +1,5 @@
 import os
+import requests
 from flask import Flask, render_template, session, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
@@ -62,6 +63,19 @@ def internal_server_error(e):
     return render_template('500.html'), 500
 
 
+def sendmail(name):
+    return requests.post(
+        "https://api.mailgun.net/v3/sandbox38e542e2f2224674bc8352e75e23c048.mailgun.org/messages",
+        auth=("api", "deaa1f4542b67f746cbbb509a9b2d112-911539ec-5ac17773"),
+        data={
+            "from": "Your App <mailgun@sandbox38e542e2f2224674bc8352e75e23c048.mailgun.org>",
+            "to": ["lucas.sousa1@aluno.ifsp.edu.br"],
+            "subject": "New Form Submission",
+            "text": f"User {name} has submitted the form."
+        }
+    )
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     form = NameForm()
@@ -75,6 +89,11 @@ def index():
         else:
             session['known'] = True
         session['name'] = form.name.data
+        sendmail(form.name.data)  # Envia o e-mail
         return redirect(url_for('index'))
     return render_template('index.html', form=form, name=session.get('name'),
                            known=session.get('known', False))
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
