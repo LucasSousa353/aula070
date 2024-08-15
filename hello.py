@@ -74,7 +74,7 @@ def sendmail(name):
     
     mailjet = Client(auth=(api_key, api_secret))
     data = {
-        'FromEmail': 'your_email@example.com',  # Substitua por um email válido
+        'FromEmail': 'sousa.silva353@gmail.com',  # Substitua por um email válido
         'FromName': 'Your App',
         'Subject': 'New Form Submission',
         'Text-part': f'User {name} has submitted the form.',
