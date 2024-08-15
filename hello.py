@@ -1,5 +1,4 @@
 import os
-import requests
 from flask import Flask, render_template, session, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
@@ -9,6 +8,7 @@ from wtforms.validators import DataRequired
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from dotenv import load_dotenv
+from mailjet_rest import Client
 
 # Carrega as variáveis do arquivo .env
 load_dotenv()
@@ -68,20 +68,21 @@ def internal_server_error(e):
 
 
 def sendmail(name):
-    api_key = os.getenv('MAILGUN_API_KEY')
-    domain = os.getenv('MAILGUN_DOMAIN')
+    api_key = os.getenv('MJ_APIKEY_PUBLIC')
+    api_secret = os.getenv('MJ_APIKEY_PRIVATE')
     recipient_email = os.getenv('RECIPIENT_EMAIL')
     
-    return requests.post(
-        f"https://api.mailgun.net/v3/{domain}/messages",
-        auth=("api", api_key),
-        data={
-            "from": f"Your App <mailgun@{domain}>",
-            "to": [recipient_email],
-            "subject": "New Form Submission",
-            "text": f"User {name} has submitted the form."
-        }
-    )
+    mailjet = Client(auth=(api_key, api_secret))
+    data = {
+        'FromEmail': 'your_email@example.com',  # Substitua por um email válido
+        'FromName': 'Your App',
+        'Subject': 'New Form Submission',
+        'Text-part': f'User {name} has submitted the form.',
+        'Html-part': f'<h3>User {name} has submitted the form.</h3>',
+        'Recipients': [{'Email': recipient_email}]
+    }
+    result = mailjet.send.create(data=data)
+    return result
 
 
 @app.route('/', methods=['GET', 'POST'])
