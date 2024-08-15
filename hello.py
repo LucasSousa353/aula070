@@ -8,6 +8,10 @@ from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from dotenv import load_dotenv
+
+# Carrega as variáveis do arquivo .env
+load_dotenv()
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -64,12 +68,16 @@ def internal_server_error(e):
 
 
 def sendmail(name):
+    api_key = os.getenv('MAILGUN_API_KEY')
+    domain = os.getenv('MAILGUN_DOMAIN')
+    recipient_email = os.getenv('RECIPIENT_EMAIL')
+    
     return requests.post(
-        "https://api.mailgun.net/v3/sandbox38e542e2f2224674bc8352e75e23c048.mailgun.org/messages",
-        auth=("api", "deaa1f4542b67f746cbbb509a9b2d112-911539ec-5ac17773"),
+        f"https://api.mailgun.net/v3/{domain}/messages",
+        auth=("api", api_key),
         data={
-            "from": "Your App <mailgun@sandbox38e542e2f2224674bc8352e75e23c048.mailgun.org>",
-            "to": ["lucas.sousa1@aluno.ifsp.edu.br"],
+            "from": f"Your App <mailgun@{domain}>",
+            "to": [recipient_email],
             "subject": "New Form Submission",
             "text": f"User {name} has submitted the form."
         }
