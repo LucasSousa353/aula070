@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, session, redirect, url_for, flash
+from flask import Flask, render_template, session, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from flask_wtf import FlaskForm
@@ -7,10 +7,10 @@ from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-import mailtrap as mt
+from mailtrap import Mail, MailtrapClient, Address
 from dotenv import load_dotenv
 
-# Carregar as variáveis de ambiente do arquivo .env
+# Carregar variáveis de ambiente do arquivo .env
 load_dotenv()
 
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -25,7 +25,6 @@ moment = Moment(app)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
-
 class Role(db.Model):
     __tablename__ = 'roles'
     id = db.Column(db.Integer, primary_key=True)
@@ -34,7 +33,6 @@ class Role(db.Model):
 
     def __repr__(self):
         return '<Role %r>' % self.name
-
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -45,26 +43,21 @@ class User(db.Model):
     def __repr__(self):
         return '<User %r>' % self.username
 
-
 class NameForm(FlaskForm):
     name = StringField('What is your name?', validators=[DataRequired()])
     submit = SubmitField('Submit')
-
 
 @app.shell_context_processor
 def make_shell_context():
     return dict(db=db, User=User, Role=Role)
 
-
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404
 
-
 @app.errorhandler(500)
 def internal_server_error(e):
     return render_template('500.html'), 500
-
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -77,27 +70,24 @@ def index():
             db.session.commit()
             session['known'] = False
             
-            # Configurar e enviar o e-mail
-            mail = mt.Mail(
-                sender=mt.Address(email="mailtrap@demomailtrap.com", name="Mailtrap Test"),
-                to=[mt.Address(email="lucas.sousa1@aluno.ifsp.edu.br")],
-                subject="Novo Usuário Registrado",
-                text=f"Um novo usuário foi registrado: {form.name.data}",
-                category="User Registration",
-            )
-
+            # Enviar e-mail usando Mailtrap
             try:
-                # Utilizar a chave de API do Mailtrap a partir do .env
-                mailtrap_api_key = os.getenv('MAILTRAP_API_KEY')
-                if not mailtrap_api_key:
+                mail = Mail(
+                    sender=Address(email="mailtrap@demomailtrap.com", name="Mailtrap Test"),
+                    to=[Address(email="lucas.sousa1@aluno.ifsp.edu.br")],
+                    subject="Novo Usuário Registrado",
+                    text=f"Um novo usuário foi registrado: {form.name.data}",
+                    category="User Registration",
+                )
+
+                api_key = os.getenv('MAILTRAP_API_KEY')
+                if not api_key:
                     raise ValueError("API Key do Mailtrap não foi encontrada. Verifique o arquivo .env.")
 
-                client = mt.MailtrapClient(token=os.getenv('MAILTRAP_API_KEY'))
+                client = MailtrapClient(token=api_key)
                 client.send(mail)
-                flash('Email enviado com sucesso!', 'success')
             except Exception as e:
-                flash(f'Erro ao enviar email: {str(e)}', 'danger')
-                return redirect(url_for('index'))
+                print(f"Erro ao enviar email: {e}")
 
         else:
             session['known'] = True
@@ -105,7 +95,6 @@ def index():
         return redirect(url_for('index'))
     return render_template('index.html', form=form, name=session.get('name'),
                            known=session.get('known', False))
-
 
 if __name__ == '__main__':
     app.run(debug=True)
