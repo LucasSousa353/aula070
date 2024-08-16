@@ -92,7 +92,7 @@ def index():
                 if not mailtrap_api_key:
                     raise ValueError("API Key do Mailtrap não foi encontrada. Verifique o arquivo .env.")
 
-                client = mt.MailtrapClient(token=mailtrap_api_key)
+                client = mt.MailtrapClient(token=os.getenv('MAILTRAP_API_KEY'))
                 client.send(mail)
                 flash('Email enviado com sucesso!', 'success')
             except Exception as e:
