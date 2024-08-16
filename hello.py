@@ -7,18 +7,17 @@ from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+import mailtrap as mt
 from dotenv import load_dotenv
-from mailjet_rest import Client
 
-# Carrega as variáveis do arquivo .env
+# Carregar as variáveis de ambiente do arquivo .env
 load_dotenv()
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'hard to guess string'
-app.config['SQLALCHEMY_DATABASE_URI'] =\
-    'sqlite:///' + os.path.join(basedir, 'data.sqlite')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'data.sqlite')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 bootstrap = Bootstrap(app)
@@ -67,24 +66,6 @@ def internal_server_error(e):
     return render_template('500.html'), 500
 
 
-def sendmail(name):
-    api_key = os.getenv('MJ_APIKEY_PUBLIC')
-    api_secret = os.getenv('MJ_APIKEY_PRIVATE')
-    recipient_email = os.getenv('RECIPIENT_EMAIL')
-    
-    mailjet = Client(auth=(api_key, api_secret))
-    data = {
-        'FromEmail': 'sousa.silva353@gmail.com',  # Substitua por um email válido
-        'FromName': 'Your App',
-        'Subject': 'New Form Submission',
-        'Text-part': f'User {name} has submitted the form.',
-        'Html-part': f'<h3>User {name} has submitted the form.</h3>',
-        'Recipients': [{'Email': recipient_email}]
-    }
-    result = mailjet.send.create(data=data)
-    return result
-
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
     form = NameForm()
@@ -95,10 +76,23 @@ def index():
             db.session.add(user)
             db.session.commit()
             session['known'] = False
+            
+            # Configurar e enviar o e-mail
+            mail = mt.Mail(
+                sender=mt.Address(email="mailtrap@demomailtrap.com", name="Mailtrap Test"),
+                to=[mt.Address(email="lucas.sousa1@aluno.ifsp.edu.br")],
+                subject="Novo Usuário Registrado",
+                text=f"Um novo usuário foi registrado: {form.name.data}",
+                category="User Registration",
+            )
+
+            # Utilizar a chave de API do Mailtrap a partir do .env
+            client = mt.MailtrapClient(token=os.getenv('MAILTRAP_API_KEY'))
+            client.send(mail)
+            
         else:
             session['known'] = True
         session['name'] = form.name.data
-        sendmail(form.name.data)  # Envia o e-mail
         return redirect(url_for('index'))
     return render_template('index.html', form=form, name=session.get('name'),
                            known=session.get('known', False))
