@@ -74,7 +74,7 @@ def index():
             try:
                 mail = Mail(
                     sender=Address(email="mailtrap@demomailtrap.com", name="Mailtrap Test"),
-                    to=[Address(email="lucas.sousa1@aluno.ifsp.edu.br")],
+                    to=[Address(email="sousa.silva353@gmail.com")],
                     subject="Novo Usuário Registrado",
                     text=f"Um novo usuário foi registrado: {form.name.data}",
                     category="User Registration",
