@@ -87,7 +87,7 @@ def index():
             )
 
             # Utilizar a chave de API do Mailtrap a partir do .env
-            client = mt.MailtrapClient(token=os.getenv('0918c3e122f6341d917d75c6a7bdee75'))
+            client = mt.MailtrapClient(token='0918c3e122f6341d917d75c6a7bdee75')
             client.send(mail)
             
         else:
