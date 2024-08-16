@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, session, redirect, url_for
+from flask import Flask, render_template, session, redirect, url_for, flash
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from flask_wtf import FlaskForm
@@ -86,10 +86,19 @@ def index():
                 category="User Registration",
             )
 
-            # Utilizar a chave de API do Mailtrap a partir do .env
-            client = mt.MailtrapClient(token='0918c3e122f6341d917d75c6a7bdee75')
-            client.send(mail)
-            
+            try:
+                # Utilizar a chave de API do Mailtrap a partir do .env
+                mailtrap_api_key = os.getenv('MAILTRAP_API_KEY')
+                if not mailtrap_api_key:
+                    raise ValueError("API Key do Mailtrap não foi encontrada. Verifique o arquivo .env.")
+
+                client = mt.MailtrapClient(token=mailtrap_api_key)
+                client.send(mail)
+                flash('Email enviado com sucesso!', 'success')
+            except Exception as e:
+                flash(f'Erro ao enviar email: {str(e)}', 'danger')
+                return redirect(url_for('index'))
+
         else:
             session['known'] = True
         session['name'] = form.name.data
