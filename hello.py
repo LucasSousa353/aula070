@@ -1,5 +1,7 @@
 import os
-from flask import Flask, render_template, session, redirect, url_for
+import logging
+import requests
+from flask import Flask, render_template, session, redirect, url_for, flash
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 from flask_wtf import FlaskForm
@@ -7,10 +9,12 @@ from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from mailtrap import Mail, MailtrapClient, Address
 from dotenv import load_dotenv
 
-# Carregar variáveis de ambiente do arquivo .env
+# Configuração do logger
+logging.basicConfig(filename='app.log', level=logging.ERROR)
+
+# Carregar variáveis de ambiente do .env
 load_dotenv()
 
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -25,6 +29,7 @@ moment = Moment(app)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
+# Modelos
 class Role(db.Model):
     __tablename__ = 'roles'
     id = db.Column(db.Integer, primary_key=True)
@@ -47,6 +52,16 @@ class NameForm(FlaskForm):
     name = StringField('What is your name?', validators=[DataRequired()])
     submit = SubmitField('Submit')
 
+# Função para enviar e-mail usando Mailgun
+def send_email(subject, recipient, text):
+    return requests.post(
+        f"https://api.mailgun.net/v3/{os.getenv('MAILGUN_DOMAIN')}/messages",
+        auth=("api", os.getenv("MAILGUN_API_KEY")),
+        data={"from": "Excited User <mailgun@your-domain.com>",
+              "to": recipient,
+              "subject": subject,
+              "text": text})
+
 @app.shell_context_processor
 def make_shell_context():
     return dict(db=db, User=User, Role=Role)
@@ -57,42 +72,36 @@ def page_not_found(e):
 
 @app.errorhandler(500)
 def internal_server_error(e):
-    return render_template('500.html'), 500
+    logging.error('Internal Server Error: %s', str(e))
+    return render_template('500.html', error=str(e)), 500
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     form = NameForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(username=form.name.data).first()
-        if user is None:
-            user = User(username=form.name.data)
-            db.session.add(user)
-            db.session.commit()
-            session['known'] = False
-            
-            # Enviar e-mail usando Mailtrap
-            try:
-                mail = Mail(
-                    sender=Address(email="mailtrap@demomailtrap.com", name="Mailtrap Test"),
-                    to=[Address(email="sousa.silva353@gmail.com")],
-                    subject="Novo Usuário Registrado",
-                    text=f"Um novo usuário foi registrado: {form.name.data}",
-                    category="User Registration",
+        try:
+            user = User.query.filter_by(username=form.name.data).first()
+            if user is None:
+                user = User(username=form.name.data)
+                db.session.add(user)
+                db.session.commit()
+                session['known'] = False
+                
+                # Enviar o e-mail de boas-vindas
+                send_email(
+                    "Novo Usuário Registrado",
+                    ["i.ramos@aluno.ifsp.edu.br", "flaskaulasweb@zohomail.com"],
+                    f"Um novo usuário foi registrado: {form.name.data}"
                 )
-
-                api_key = os.getenv('MAILTRAP_API_KEY')
-                if not api_key:
-                    raise ValueError("API Key do Mailtrap não foi encontrada. Verifique o arquivo .env.")
-
-                client = MailtrapClient(token=api_key)
-                client.send(mail)
-            except Exception as e:
-                print(f"Erro ao enviar email: {e}")
-
-        else:
-            session['known'] = True
-        session['name'] = form.name.data
-        return redirect(url_for('index'))
+            else:
+                session['known'] = True
+            session['name'] = form.name.data
+            return redirect(url_for('index'))
+        except Exception as e:
+            # Log do erro e exibição na página
+            logging.error('Error during user registration or email sending: %s', str(e))
+            flash(f'Ocorreu um erro: {str(e)}', 'error')
+            return render_template('index.html', form=form, name=session.get('name'), known=session.get('known', False))
     return render_template('index.html', form=form, name=session.get('name'),
                            known=session.get('known', False))
 
